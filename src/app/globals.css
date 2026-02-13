@@ -1,26 +1,354 @@
 @import "tailwindcss";
 
+/* ============================================
+   Anyhark Mirror of Truth - Sci-Fi Mirror Theme
+   ============================================ */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Core palette */
+  --mirror-bg-from: #0A0A0F;
+  --mirror-bg-to: #0D0D14;
+  --mirror-surface: rgba(255, 255, 255, 0.03);
+  --mirror-surface-strong: rgba(255, 255, 255, 0.06);
+  --mirror-border: rgba(255, 255, 255, 0.08);
+  --mirror-border-strong: rgba(255, 255, 255, 0.14);
+
+  /* Silver-blue highlight gradient */
+  --mirror-silver: #C0C0C0;
+  --mirror-blue: #38BDF8;
+
+  /* Text */
+  --mirror-text-primary: #E8E8F0;
+  --mirror-text-secondary: rgba(255, 255, 255, 0.5);
+  --mirror-text-tertiary: rgba(255, 255, 255, 0.3);
+
+  /* Dimension colors */
+  --dim-feeling: #FF6B9D;
+  --dim-intuition: #A855F7;
+  --dim-sensing: #2DD4BF;
+  --dim-thinking: #38BDF8;
+
+  /* Glow */
+  --mirror-glow-color: rgba(56, 189, 248, 0.15);
+  --mirror-glow-strong: rgba(56, 189, 248, 0.25);
+
+  /* Timing */
+  --transition-fast: 150ms;
+  --transition-base: 250ms;
+  --transition-slow: 500ms;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background: var(--mirror-bg-from);
+  --color-foreground: var(--mirror-text-primary);
+  --color-surface: var(--mirror-surface);
+  --color-surface-strong: var(--mirror-surface-strong);
+  --color-border: var(--mirror-border);
+  --color-border-strong: var(--mirror-border-strong);
+  --color-silver: var(--mirror-silver);
+  --color-mirror-blue: var(--mirror-blue);
+  --color-text-primary: var(--mirror-text-primary);
+  --color-text-secondary: var(--mirror-text-secondary);
+  --color-text-tertiary: var(--mirror-text-tertiary);
+  --color-feeling: var(--dim-feeling);
+  --color-intuition: var(--dim-intuition);
+  --color-sensing: var(--dim-sensing);
+  --color-thinking: var(--dim-thinking);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* ============================================
+   Base Styles
+   ============================================ */
+
+body {
+  background: linear-gradient(180deg, var(--mirror-bg-from) 0%, var(--mirror-bg-to) 100%);
+  color: var(--mirror-text-primary);
+  font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ============================================
+   Glass Morphism Utilities
+   ============================================ */
+
+.glass {
+  background: var(--mirror-surface);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--mirror-border);
+  border-radius: 16px;
+  transition: border-color var(--transition-base) ease,
+              box-shadow var(--transition-base) ease;
+}
+
+.glass:hover {
+  border-color: var(--mirror-border-strong);
+}
+
+.glass-strong {
+  background: var(--mirror-surface-strong);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  border: 1px solid var(--mirror-border-strong);
+  border-radius: 16px;
+  transition: border-color var(--transition-base) ease,
+              box-shadow var(--transition-base) ease;
+}
+
+.glass-strong:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* ============================================
+   Mirror Glow
+   ============================================ */
+
+.mirror-glow {
+  box-shadow: 0 0 20px var(--mirror-glow-color),
+              0 0 60px rgba(56, 189, 248, 0.05),
+              inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.mirror-glow:hover {
+  box-shadow: 0 0 30px var(--mirror-glow-strong),
+              0 0 80px rgba(56, 189, 248, 0.08),
+              inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* ============================================
+   Mirror Text (Silver-Blue Gradient)
+   ============================================ */
+
+.mirror-text {
+  background: linear-gradient(135deg, var(--mirror-silver) 0%, var(--mirror-blue) 50%, var(--mirror-silver) 100%);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer-text 6s ease-in-out infinite;
+}
+
+@keyframes shimmer-text {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* ============================================
+   Aurora Animated Background
+   ============================================ */
+
+.aurora-bg {
+  position: relative;
+}
+
+.aurora-bg::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background: linear-gradient(
+    135deg,
+    var(--mirror-bg-from) 0%,
+    #0D0D1A 15%,
+    #0E0B1E 25%,
+    #0A1018 40%,
+    var(--mirror-bg-to) 55%,
+    #0C0E1A 70%,
+    #100D18 85%,
+    var(--mirror-bg-from) 100%
+  );
+  background-size: 400% 400%;
+  animation: aurora-shift 20s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* ============================================
+   Keyframe Animations
+   ============================================ */
+
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 0.4;
+    box-shadow: 0 0 15px rgba(56, 189, 248, 0.1);
+  }
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 30px rgba(56, 189, 248, 0.2),
+                0 0 60px rgba(56, 189, 248, 0.08);
+  }
+}
+
+@keyframes aurora-shift {
+  0% { background-position: 0% 0%; }
+  25% { background-position: 100% 50%; }
+  50% { background-position: 50% 100%; }
+  75% { background-position: 0% 50%; }
+  100% { background-position: 0% 0%; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  33% { transform: translateY(-6px); }
+  66% { transform: translateY(3px); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Animation utility classes */
+.animate-pulse-glow { animation: pulse-glow 3s ease-in-out infinite; }
+.animate-aurora { animation: aurora-shift 20s ease-in-out infinite; }
+.animate-float { animation: float 6s ease-in-out infinite; }
+.animate-fade-in { animation: fade-in 0.5s ease-out forwards; }
+.animate-slide-up { animation: slide-up 0.5s ease-out forwards; }
+
+/* ============================================
+   Scrollbar Styling
+   ============================================ */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+}
+
+*::-webkit-scrollbar { width: 6px; height: 6px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+}
+*::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.24); }
+*::-webkit-scrollbar-corner { background: transparent; }
+
+/* ============================================
+   Markdown Prose (Mirror Theme)
+   ============================================ */
+
+.prose-mirror {
+  line-height: 1.7;
+}
+
+.prose-mirror p {
+  margin: 0.5em 0;
+}
+
+.prose-mirror p:first-child {
+  margin-top: 0;
+}
+
+.prose-mirror p:last-child {
+  margin-bottom: 0;
+}
+
+.prose-mirror strong {
+  color: var(--mirror-text-primary);
+  font-weight: 600;
+}
+
+.prose-mirror em {
+  color: var(--mirror-text-secondary);
+  font-style: italic;
+}
+
+.prose-mirror code {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.85em;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  padding: 0.15em 0.35em;
+}
+
+.prose-mirror pre {
+  margin: 0.75em 0;
+  padding: 0.75em 1em;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  overflow-x: auto;
+}
+
+.prose-mirror pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.8em;
+  line-height: 1.6;
+}
+
+.prose-mirror ul,
+.prose-mirror ol {
+  margin: 0.5em 0;
+  padding-left: 1.5em;
+}
+
+.prose-mirror li {
+  margin: 0.25em 0;
+}
+
+.prose-mirror ul li::marker {
+  color: var(--mirror-text-tertiary);
+}
+
+.prose-mirror ol li::marker {
+  color: var(--mirror-text-tertiary);
+}
+
+.prose-mirror blockquote {
+  margin: 0.5em 0;
+  padding-left: 1em;
+  border-left: 2px solid rgba(56, 189, 248, 0.3);
+  color: var(--mirror-text-secondary);
+}
+
+.prose-mirror h1, .prose-mirror h2, .prose-mirror h3,
+.prose-mirror h4, .prose-mirror h5, .prose-mirror h6 {
+  color: var(--mirror-text-primary);
+  font-weight: 600;
+  margin: 0.75em 0 0.35em;
+}
+
+.prose-mirror h1 { font-size: 1.25em; }
+.prose-mirror h2 { font-size: 1.15em; }
+.prose-mirror h3 { font-size: 1.05em; }
+
+.prose-mirror hr {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin: 1em 0;
+}
+
+.prose-mirror a {
+  color: var(--mirror-blue);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.prose-mirror a:hover {
+  color: var(--mirror-silver);
+}
+
+/* ============================================
+   Selection Styling
+   ============================================ */
+
+::selection {
+  background: rgba(56, 189, 248, 0.25);
+  color: #E8E8F0;
 }
