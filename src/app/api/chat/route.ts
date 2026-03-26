@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
         .map((dimId) => {
           const result = dimensionResults.find((r) => r.id === dimId);
           if (!result) return null;
-          return `- ${dimensionLabel[dimId]}（激活度 ${result.score}/10）：${result.analysis}`;
+          return `- ${dimensionLabel[dimId]}：${result.analysis}`;
         })
         .filter(Boolean)
         .join('\n');

@@ -22,7 +22,7 @@ export interface DimensionConfig {
   id: DimensionId;
   name: string;        // English name for radar label
   subtitle: string;    // Short Chinese subtitle for cards
-  annotation: string;  // Psychological annotation
+  annotation: string;  // Psychological annotation + score interpretation
   label: string;       // Short label for radar chart
   systemPrompt: string;
   temperature: number;

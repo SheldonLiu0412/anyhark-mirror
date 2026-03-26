@@ -4,6 +4,12 @@ import { useState } from 'react';
 import { DimensionResult } from '@/lib/types';
 import { DIMENSIONS } from '@/lib/dimensions';
 
+function getScoreHint(score: number, hints: { low: string; mid: string; high: string }) {
+  if (score <= 3) return hints.low;
+  if (score <= 6) return hints.mid;
+  return hints.high;
+}
+
 interface DimensionPanelProps {
   dimensions: DimensionResult[];
 }
