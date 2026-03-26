@@ -1,6 +1,6 @@
 'use client';
 
-import Markdown from 'react-markdown';
+import MarkdownRender from 'markstream-react';
 import { Message } from '@/lib/types';
 import { DimensionPanel } from './DimensionPanel';
 
@@ -30,7 +30,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
           </div>
         ) : (
           <div className="prose-mirror text-sm leading-relaxed">
-            <Markdown>{message.content}</Markdown>
+            <MarkdownRender content={message.content} final />
           </div>
         )}
       </div>
@@ -48,7 +48,7 @@ export function StreamingBubble({ content }: StreamingBubbleProps) {
     <div className="flex justify-start">
       <div className="max-w-[80%] rounded-2xl px-4 py-3 text-text-primary">
         <div className="prose-mirror text-sm leading-relaxed">
-          <Markdown>{content}</Markdown>
+          <MarkdownRender content={content} />
           <span className="inline-block w-[2px] h-[14px] bg-mirror-blue/60 ml-0.5 animate-pulse" />
         </div>
       </div>
