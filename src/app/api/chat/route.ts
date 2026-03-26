@@ -2,9 +2,22 @@ import { NextRequest } from 'next/server';
 import { callDimension, streamSynthesis } from '@/lib/llm';
 import { DIMENSIONS, SYNTHESIS_SYSTEM_PROMPT, DIMENSION_ORDER } from '@/lib/dimensions';
 import { DimensionId, DimensionResult } from '@/lib/types';
+import { upsertConversation, saveMessage } from '@/lib/db';
+
+function getUserIp(req: NextRequest): string {
+  return (
+    req.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
+    req.headers.get('x-real-ip') ||
+    'unknown'
+  );
+}
 
 export async function POST(req: NextRequest) {
-  let body: { messages: Array<{ role: string; content: string }> };
+  let body: {
+    messages: Array<{ role: string; content: string }>;
+    conversationId?: string;
+    lastUserMessageId?: string;
+  };
 
   try {
     body = await req.json();
@@ -15,7 +28,7 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const { messages } = body;
+  const { messages, conversationId, lastUserMessageId } = body;
 
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
     return new Response(JSON.stringify({ error: 'messages array is required' }), {
@@ -24,11 +37,26 @@ export async function POST(req: NextRequest) {
     });
   }
 
+  const userIp = getUserIp(req);
+  const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user');
+
+  // ── Persist conversation + user message (fire-and-forget, don't block stream) ──
+  if (conversationId && lastUserMsg && lastUserMessageId) {
+    upsertConversation(conversationId, userIp).then(() =>
+      saveMessage({
+        id: lastUserMessageId,
+        conversationId,
+        userIp,
+        role: 'user',
+        content: lastUserMsg.content,
+      }),
+    ).catch((err) => console.error('[db] save user message failed:', err));
+  }
+
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
     async start(controller) {
-      // Helper to send an SSE event
       const sendEvent = (event: string, data: unknown) => {
         const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
         controller.enqueue(encoder.encode(payload));
@@ -81,8 +109,6 @@ export async function POST(req: NextRequest) {
         .filter(Boolean)
         .join('\n');
 
-      // Inject dimension analyses into the system prompt so the model treats them
-      // as internal cognition, not as user input.
       const synthesisSystemPrompt = `${SYNTHESIS_SYSTEM_PROMPT}
 
 ## 当前轮次的内部维度分析
@@ -90,16 +116,14 @@ export async function POST(req: NextRequest) {
 
 ${analysisBlock}
 
-以上是你的内部思考，现在请基于这些思考和你的主人格认知，直接回应对方（是和对方交谈，不要讲“基于四个维度的分析...”）。`;
+以上是你的内部思考，现在请基于这些思考和你的主人格认知，直接回应对方（是和对方交谈，不要讲"基于四个维度的分析..."）。`;
 
       console.log(`[synthesis] starting — messages: ${messages.length}, systemPrompt: ${synthesisSystemPrompt.length} chars`);
 
-      try {
-        const synthesisStream = streamSynthesis(
-          synthesisSystemPrompt,
-          messages,
-        );
+      let synthesisContent = '';
 
+      try {
+        const synthesisStream = streamSynthesis(synthesisSystemPrompt, messages);
         const reader = synthesisStream.getReader();
         let synthesisChunks = 0;
 
@@ -107,6 +131,7 @@ ${analysisBlock}
           const { done, value } = await reader.read();
           if (done) break;
           synthesisChunks++;
+          synthesisContent += value;
           sendEvent('synthesis', { content: value, done: false });
         }
 
@@ -119,7 +144,19 @@ ${analysisBlock}
         });
       }
 
-      // ── Phase 3: Signal completion ──
+      // ── Phase 3: Persist assistant message (after stream completes) ──
+      if (conversationId && synthesisContent) {
+        const assistantMsgId = `assistant-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        saveMessage({
+          id: assistantMsgId,
+          conversationId,
+          userIp,
+          role: 'assistant',
+          content: synthesisContent,
+          dimensions: dimensionResults,
+        }).catch((err) => console.error('[db] save assistant message failed:', err));
+      }
+
       sendEvent('done', {});
       controller.close();
     },

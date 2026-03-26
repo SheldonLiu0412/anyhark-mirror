@@ -6,6 +6,7 @@ import { AuroraBackground, GradientTitle } from '@/components/effects/SciFiEffec
 import { ChatContainer } from '@/components/chat/ChatContainer';
 import { ConversationsSidebar } from '@/components/chat/ConversationsSidebar';
 import { MirrorContainer } from '@/components/mirror/MirrorContainer';
+import { PasswordGate } from '@/components/PasswordGate';
 
 export default function Home() {
   const {
@@ -40,6 +41,7 @@ export default function Home() {
     : lastAssistantDimensions;
 
   return (
+    <PasswordGate>
     <div className="aurora-bg flex h-screen flex-col overflow-hidden">
       <AuroraBackground />
 
@@ -131,5 +133,6 @@ export default function Home() {
         </div>
       )}
     </div>
+    </PasswordGate>
   );
 }
