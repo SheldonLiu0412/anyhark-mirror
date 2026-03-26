@@ -76,35 +76,41 @@ export async function POST(req: NextRequest) {
         .map((dimId) => {
           const result = dimensionResults.find((r) => r.id === dimId);
           if (!result) return null;
-          return `${dimensionLabel[dimId]}：${result.analysis}`;
+          return `- ${dimensionLabel[dimId]}（激活度 ${result.score}/10）：${result.analysis}`;
         })
         .filter(Boolean)
         .join('\n');
 
-      const lastUserMessage =
-        [...messages].reverse().find((m) => m.role === 'user')?.content ?? '';
+      // Inject dimension analyses into the system prompt so the model treats them
+      // as internal cognition, not as user input.
+      const synthesisSystemPrompt = `${SYNTHESIS_SYSTEM_PROMPT}
 
-      const synthesisUserMessage = `[四个维度的分析]\n${analysisBlock}\n\n[对话历史中最后一条用户消息]\n${lastUserMessage}\n\n基于以上四个维度的分析，写出你的回应。`;
+## 当前轮次的内部维度分析
+在回应之前，你已从四个内在维度审视了对方的话，结果如下：
 
-      const synthesisMessages = [
-        ...messages.slice(0, -1),
-        { role: 'user', content: synthesisUserMessage },
-      ];
+${analysisBlock}
+
+以上是你的内部思考，现在请基于这些思考和你的主人格认知，直接回应对方（是和对方交谈，不要讲“基于四个维度的分析...”）。`;
+
+      console.log(`[synthesis] starting — messages: ${messages.length}, systemPrompt: ${synthesisSystemPrompt.length} chars`);
 
       try {
         const synthesisStream = streamSynthesis(
-          SYNTHESIS_SYSTEM_PROMPT,
-          synthesisMessages,
+          synthesisSystemPrompt,
+          messages,
         );
 
         const reader = synthesisStream.getReader();
+        let synthesisChunks = 0;
 
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
+          synthesisChunks++;
           sendEvent('synthesis', { content: value, done: false });
         }
 
+        console.log(`[synthesis] complete — chunks sent: ${synthesisChunks}`);
         sendEvent('synthesis', { content: '', done: true });
       } catch (err) {
         console.error('Synthesis streaming failed:', err);

@@ -165,12 +165,14 @@ export function ConversationsSidebar({
               const displayChar = title.trim().slice(0, 1) || String(idx + 1);
 
               return (
-                <button
+                <div
                   key={conv.id}
-                  type="button"
+                  role="button"
+                  tabIndex={0}
                   onClick={() => onSelectConversation(conv.id)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onSelectConversation(conv.id); }}
                   className={[
-                    'w-full rounded-xl border px-3 py-2.5 text-left transition-colors',
+                    'w-full rounded-xl border px-3 py-2.5 text-left transition-colors cursor-pointer',
                     collapsed ? 'px-2 justify-center flex' : 'flex items-center gap-3',
                     active
                       ? 'border-white/[0.14] bg-white/[0.08]'
@@ -192,10 +194,7 @@ export function ConversationsSidebar({
                   )}
 
                   {!collapsed && (
-                    <span
-                      className="ml-auto flex items-center justify-end"
-                      // Keep a local container so we can render delete without affecting button layout.
-                    >
+                    <span className="ml-auto flex items-center justify-end">
                       <button
                         type="button"
                         onClick={(e) => {
@@ -210,7 +209,7 @@ export function ConversationsSidebar({
                       </button>
                     </span>
                   )}
-                </button>
+                </div>
               );
             })}
           </div>

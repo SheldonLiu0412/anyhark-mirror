@@ -238,6 +238,9 @@ export function useConversationsChat(): UseConversationsChatReturn {
       const dimensionsBuild: DimensionResult[] = [];
       let didFinalize = false;
 
+      // Persists across chunks so event type is never lost at packet boundaries.
+      let currentEventType = '';
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -245,8 +248,6 @@ export function useConversationsChat(): UseConversationsChatReturn {
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split('\n');
         buffer = lines.pop() ?? '';
-
-        let currentEventType = '';
 
         for (const line of lines) {
           if (line.startsWith('event: ')) {
@@ -294,6 +295,9 @@ export function useConversationsChat(): UseConversationsChatReturn {
               // Skip malformed data
             }
 
+            // Reset after consuming the data line; blank line also resets.
+            currentEventType = '';
+          } else if (line === '') {
             currentEventType = '';
           }
         }

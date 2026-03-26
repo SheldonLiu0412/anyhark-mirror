@@ -141,12 +141,17 @@ export function streamSynthesis(
 
       const decoder = new TextDecoder();
       let buffer = '';
+      let totalChars = 0;
+      let chunkCount = 0;
+      // Persists across chunks so event type is never lost at packet boundaries.
+      let currentEventType = '';
 
       try {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
+          chunkCount++;
           buffer += decoder.decode(value, { stream: true });
 
           // Parse SSE lines from the buffer
@@ -154,24 +159,31 @@ export function streamSynthesis(
           // Keep the last potentially incomplete line in the buffer
           buffer = lines.pop() ?? '';
 
-          let currentEventType = '';
-
           for (const line of lines) {
             if (line.startsWith('event: ')) {
               currentEventType = line.slice(7).trim();
-            } else if (line.startsWith('data: ') && currentEventType === 'content_block_delta') {
-              const jsonStr = line.slice(6);
-              try {
-                const event: AnthropicStreamEvent = JSON.parse(jsonStr);
-                if (event.delta?.text) {
-                  controller.enqueue(event.delta.text);
+            } else if (line.startsWith('data: ')) {
+              if (currentEventType === 'content_block_delta') {
+                const jsonStr = line.slice(6);
+                try {
+                  const event: AnthropicStreamEvent = JSON.parse(jsonStr);
+                  if (event.delta?.text) {
+                    totalChars += event.delta.text.length;
+                    controller.enqueue(event.delta.text);
+                  }
+                } catch {
+                  // Skip malformed JSON lines
                 }
-              } catch {
-                // Skip malformed JSON lines
               }
+              // Reset after consuming the data line of any event type.
+              currentEventType = '';
+            } else if (line === '') {
+              // Blank line marks end of SSE event; clear any pending type.
+              currentEventType = '';
             }
           }
         }
+        console.log(`[streamSynthesis] done — chunks: ${chunkCount}, chars: ${totalChars}`);
       } catch (err) {
         controller.error(err);
         return;
