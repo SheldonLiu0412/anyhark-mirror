@@ -56,3 +56,11 @@ export type SSEEvent = DimensionEvent | SynthesisEvent | ErrorEvent | DoneEvent;
 export interface ChatRequest {
   messages: Pick<Message, 'role' | 'content'>[];
 }
+
+// A persisted conversation in the sidebar list
+export interface Conversation {
+  id: string;
+  messages: Message[];
+  createdAt: number;
+  updatedAt: number;
+}
