@@ -61,6 +61,11 @@ export function useConversationsChat(): UseConversationsChatReturn {
   const activeConversationIdRef = useRef<string | null>(null);
   const activeMessagesRef = useRef<Message[]>([]);
 
+  // Typewriter drip: chars received from API but not yet displayed
+  const dripRafRef = useRef<number | null>(null);
+  const displayQueueRef = useRef('');
+  const pendingFinalizeRef = useRef<(() => void) | null>(null);
+
   useEffect(() => {
     isLoadingRef.current = isLoading;
   }, [isLoading]);
@@ -81,9 +86,20 @@ export function useConversationsChat(): UseConversationsChatReturn {
   const resetStreaming = useCallback(() => {
     abortRef.current?.abort();
     abortRef.current = null;
+    if (dripRafRef.current !== null) {
+      cancelAnimationFrame(dripRafRef.current);
+      dripRafRef.current = null;
+    }
+    displayQueueRef.current = '';
+    pendingFinalizeRef.current = null;
     setIsLoading(false);
     setCurrentDimensions([]);
     setCurrentSynthesis('');
+  }, []);
+
+  // Cleanup drip rAF on unmount
+  useEffect(() => () => {
+    if (dripRafRef.current !== null) cancelAnimationFrame(dripRafRef.current);
   }, []);
 
   useEffect(() => {
@@ -264,32 +280,70 @@ export function useConversationsChat(): UseConversationsChatReturn {
                 const synthesisData = data as { content?: string; done?: boolean };
                 if (!synthesisData.done && synthesisData.content) {
                   synthesisBuild += synthesisData.content;
-                  setCurrentSynthesis(synthesisBuild);
+                  displayQueueRef.current += synthesisData.content;
+                  // Start the rAF drip loop if not already running.
+                  // Uses time-based emission so speed stays constant across frame rates.
+                  if (dripRafRef.current === null) {
+                    const CHARS_PER_SEC = 50;
+                    let lastTime = performance.now();
+
+                    const tick = (now: number) => {
+                      const elapsed = Math.min(now - lastTime, 100); // cap to avoid burst after tab switch
+                      lastTime = now;
+
+                      if (displayQueueRef.current.length > 0) {
+                        const charsToEmit = Math.max(1, Math.round(elapsed * CHARS_PER_SEC / 1000));
+                        const emit = displayQueueRef.current.slice(0, charsToEmit);
+                        displayQueueRef.current = displayQueueRef.current.slice(charsToEmit);
+                        setCurrentSynthesis((prev) => prev + emit);
+                        dripRafRef.current = requestAnimationFrame(tick);
+                      } else if (pendingFinalizeRef.current) {
+                        dripRafRef.current = null;
+                        const fn = pendingFinalizeRef.current;
+                        pendingFinalizeRef.current = null;
+                        fn();
+                      } else {
+                        // Queue empty, keep the loop alive waiting for more chunks
+                        dripRafRef.current = requestAnimationFrame(tick);
+                      }
+                    };
+
+                    dripRafRef.current = requestAnimationFrame(tick);
+                  }
                 }
               } else if (currentEventType === 'done') {
-                const assistantMessage: Message = {
-                  id: makeId('assistant'),
-                  role: 'assistant',
-                  content: synthesisBuild,
-                  dimensions: [...dimensionsBuild],
-                  timestamp: Date.now(),
+                didFinalize = true;
+                const finalContent = synthesisBuild;
+                const finalDimensions = [...dimensionsBuild];
+
+                const doFinalize = () => {
+                  const assistantMessage: Message = {
+                    id: makeId('assistant'),
+                    role: 'assistant',
+                    content: finalContent,
+                    dimensions: finalDimensions,
+                    timestamp: Date.now(),
+                  };
+                  // All three updates in one batch: MessageBubble appears (no enter animation),
+                  // StreamingBubble disappears — same render, no empty frame.
+                  setConversations((prev) =>
+                    prev.map((conv) =>
+                      conv.id === convId
+                        ? { ...conv, messages: [...conv.messages, assistantMessage], updatedAt: Date.now() }
+                        : conv,
+                    ),
+                  );
+                  setCurrentDimensions([]);
+                  setCurrentSynthesis('');
                 };
 
-                didFinalize = true;
-                setConversations((prev) =>
-                  prev.map((conv) =>
-                    conv.id === convId
-                      ? {
-                          ...conv,
-                          messages: [...conv.messages, assistantMessage],
-                          updatedAt: Date.now(),
-                        }
-                      : conv,
-                  ),
-                );
-
-                setCurrentDimensions([]);
-                setCurrentSynthesis('');
+                if (displayQueueRef.current.length === 0 && dripRafRef.current === null) {
+                  // Queue already empty, finalize immediately
+                  doFinalize();
+                } else {
+                  // Let the drip loop finalize once the queue drains
+                  pendingFinalizeRef.current = doFinalize;
+                }
               }
             } catch {
               // Skip malformed data
@@ -306,27 +360,33 @@ export function useConversationsChat(): UseConversationsChatReturn {
       // Some runtimes may finish the stream before the final `event: done`
       // chunk gets parsed. Fallback-finalize to ensure assistant text appears.
       if (!didFinalize && (synthesisBuild || dimensionsBuild.length > 0)) {
-        const assistantMessage: Message = {
-          id: makeId('assistant'),
-          role: 'assistant',
-          content: synthesisBuild,
-          dimensions: [...dimensionsBuild],
-          timestamp: Date.now(),
+        const finalContent = synthesisBuild;
+        const finalDimensions = [...dimensionsBuild];
+
+        const doFinalize = () => {
+          const assistantMessage: Message = {
+            id: makeId('assistant'),
+            role: 'assistant',
+            content: finalContent,
+            dimensions: finalDimensions,
+            timestamp: Date.now(),
+          };
+          setConversations((prev) =>
+            prev.map((conv) =>
+              conv.id === convId
+                ? { ...conv, messages: [...conv.messages, assistantMessage], updatedAt: Date.now() }
+                : conv,
+            ),
+          );
+          setCurrentDimensions([]);
+          setCurrentSynthesis('');
         };
 
-        setConversations((prev) =>
-          prev.map((conv) =>
-            conv.id === convId
-              ? {
-                  ...conv,
-                  messages: [...conv.messages, assistantMessage],
-                  updatedAt: Date.now(),
-                }
-              : conv,
-          ),
-        );
-        setCurrentDimensions([]);
-        setCurrentSynthesis('');
+        if (displayQueueRef.current.length === 0 && dripRafRef.current === null) {
+          doFinalize();
+        } else {
+          pendingFinalizeRef.current = doFinalize;
+        }
       }
     } catch (err) {
       // Abort shouldn't add any extra messages.

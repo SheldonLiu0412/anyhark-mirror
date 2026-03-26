@@ -12,7 +12,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
   const isUser = message.role === 'user';
 
   return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} animate-slide-up`}>
+    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} ${isUser ? 'animate-slide-up' : ''}`}>
       <div
         className={`max-w-[80%] rounded-2xl px-4 py-3 ${
           isUser
@@ -20,10 +20,6 @@ export function MessageBubble({ message }: MessageBubbleProps) {
             : 'text-text-primary'
         }`}
       >
-        {!isUser && message.dimensions && (
-          <DimensionPanel dimensions={message.dimensions} />
-        )}
-
         {isUser ? (
           <div className="text-sm leading-relaxed whitespace-pre-wrap">
             {message.content}
@@ -32,6 +28,10 @@ export function MessageBubble({ message }: MessageBubbleProps) {
           <div className="prose-mirror text-sm leading-relaxed">
             <MarkdownRender content={message.content} final />
           </div>
+        )}
+
+        {!isUser && message.dimensions && (
+          <DimensionPanel dimensions={message.dimensions} />
         )}
       </div>
     </div>
